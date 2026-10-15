@@ -2,13 +2,13 @@
 layout: home
 ---
 
-# 🔬 LeJus's Security Research Lab
+# LeJus's Security Research Lab
 
 > 컴퓨터 과학의 경계를 탐구하는 실습 중심의 사이버 보안 연구 노트.
 
 ---
 
-## 👋 Welcome!
+## Welcome
 
 이곳은 컴퓨팅의 가장 깊은 곳, 시스템의 로우 레벨(Low-Level) 세계를 탐구하는 저의 개인적인 기록 공간입니다. 
 
@@ -16,7 +16,7 @@ layout: home
 
 ---
 
-## 📂 Featured Categories
+## Featured Categories
 
 * **Network Security**: 패킷 분석 및 네트워크 모니터링 연구
 * **Low-Level Security**: ROP, BOF, Kernel Exploit 등 시스템 취약점 분석
