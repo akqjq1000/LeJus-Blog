@@ -80,3 +80,28 @@ footer.site-footer {
   color: var(--muted-foreground);
   text-align: center;
 }
+
+/* Add to existing style.css */
+.post-item {
+    margin-bottom: 1rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.post-link {
+    text-decoration: none;
+    color: var(--foreground);
+    font-weight: 500;
+}
+
+.post-link:hover {
+    color: var(--accent);
+}
+
+.post-date {
+    font-size: 0.85rem;
+    color: var(--muted-foreground);
+}
