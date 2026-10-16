@@ -1,0 +1,30 @@
+---
+import { url } from '../lib/site';
+const path = Astro.url.pathname.replace(/\/$/, '');
+const links = [
+  { href: url('/'), label: 'Posts' },
+  { href: url('/tags'), label: 'Tags' },
+  { href: url('/about'), label: 'About' },
+];
+---
+<header class="site-header">
+  <div class="container">
+    <a class="logo" href={url('/')} aria-label="홈으로"><span class="prompt">~$</span>lejus<span class="cursor" aria-hidden="true"></span></a>
+    <nav class="nav">
+      {links.map((l) => (
+        <a href={l.href} aria-current={path === l.href.replace(/\/$/, '') ? 'page' : undefined}>{l.label}</a>
+      ))}
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="테마 전환">
+        <svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+    </nav>
+  </div>
+</header>
+<script is:inline>
+  document.getElementById('theme-toggle')?.addEventListener('click', () => {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('theme', next); } catch {}
+  });
+</script>

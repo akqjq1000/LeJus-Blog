@@ -1,0 +1,29 @@
+---
+import Base from '../../layouts/Base.astro';
+import PostCard from '../../components/PostCard.astro';
+import { getPosts, slugifyTag, type Post } from '../../lib/posts';
+
+export async function getStaticPaths() {
+  const posts = await getPosts();
+  const map = new Map<string, { name: string; posts: Post[] }>();
+  for (const post of posts) {
+    for (const name of post.data.tags) {
+      const key = slugifyTag(name);
+      if (!map.has(key)) map.set(key, { name, posts: [] });
+      map.get(key)!.posts.push(post);
+    }
+  }
+  return [...map].map(([tag, v]) => ({ params: { tag }, props: v }));
+}
+
+interface Props { name: string; posts: Post[] }
+const { name, posts } = Astro.props;
+---
+<Base title={`#${name}`} description={`#${name} 태그가 달린 글`}>
+  <section class="hero">
+    <p class="eyebrow">$ grep -r "#{name}"</p>
+    <h1>#{name}</h1>
+    <p>{posts.length}개의 글</p>
+  </section>
+  <ul class="post-list">{posts.map((post) => <PostCard post={post} />)}</ul>
+</Base>

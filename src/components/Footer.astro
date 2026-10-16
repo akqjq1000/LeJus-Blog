@@ -1,0 +1,9 @@
+---
+import { SITE, url } from '../lib/site';
+---
+<footer class="site-footer">
+  <div class="container">
+    <span>© {new Date().getFullYear()} {SITE.author}</span>
+    <span><a href={SITE.github} target="_blank" rel="noopener">GitHub</a> · <a href={url('/rss.xml')}>RSS</a></span>
+  </div>
+</footer>

@@ -1,0 +1,20 @@
+---
+import Base from '../layouts/Base.astro';
+import PostCard from '../components/PostCard.astro';
+import { getPosts } from '../lib/posts';
+import { SITE } from '../lib/site';
+const posts = await getPosts();
+---
+<Base>
+  <section class="hero">
+    <p class="eyebrow">$ cat ./README</p>
+    <h1>직접 실험하고,<br />기록하는 보안 블로그</h1>
+    <p>{SITE.description}</p>
+  </section>
+  <h2 class="section-title">Latest posts · {posts.length}</h2>
+  {posts.length ? (
+    <ul class="post-list">{posts.map((post) => <PostCard post={post} />)}</ul>
+  ) : (
+    <p class="empty">아직 작성된 글이 없습니다.</p>
+  )}
+</Base>

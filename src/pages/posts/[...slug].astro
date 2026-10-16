@@ -1,0 +1,47 @@
+---
+import { render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import { getPosts, slugifyTag, type Post } from '../../lib/posts';
+import { url, formatDate, readingTime } from '../../lib/site';
+
+export async function getStaticPaths() {
+  const posts = await getPosts();
+  return posts.map((post, i) => ({
+    params: { slug: post.id },
+    props: { post, newer: posts[i - 1], older: posts[i + 1] },
+  }));
+}
+
+interface Props { post: Post; newer?: Post; older?: Post }
+const { post, newer, older } = Astro.props;
+const { Content } = await render(post);
+const minutes = readingTime(post.body);
+---
+<Base title={post.data.title} description={post.data.description} type="article">
+  <article>
+    <header class="post-header">
+      <div class="meta">
+        <span class="badge">{post.data.category}</span>
+        <time datetime={post.data.date.toISOString()}>{formatDate(post.data.date)}</time>
+        <span>· {minutes} min read</span>
+        {post.data.updated && <span>· 수정 {formatDate(post.data.updated)}</span>}
+      </div>
+      <h1>{post.data.title}</h1>
+      <p class="desc">{post.data.description}</p>
+      {post.data.tags.length > 0 && (
+        <div class="tags">
+          {post.data.tags.map((t) => <a class="tag" href={url(`/tags/${slugifyTag(t)}/`)}>#{t}</a>)}
+        </div>
+      )}
+    </header>
+    <div class="prose">
+      <Content />
+    </div>
+    <footer class="post-footer">
+      <nav class="post-nav" aria-label="이전/다음 글">
+        {older && <a class="prev" href={url(`/posts/${older.id}/`)}><small>← 이전 글</small>{older.data.title}</a>}
+        {newer && <a class="next" href={url(`/posts/${newer.id}/`)}><small>다음 글 →</small>{newer.data.title}</a>}
+      </nav>
+    </footer>
+  </article>
+</Base>

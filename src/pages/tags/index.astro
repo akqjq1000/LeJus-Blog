@@ -1,0 +1,20 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getPosts, slugifyTag } from '../../lib/posts';
+import { url } from '../../lib/site';
+const posts = await getPosts();
+const counts = new Map<string, number>();
+posts.flatMap((p) => p.data.tags).forEach((t) => counts.set(t, (counts.get(t) ?? 0) + 1));
+const tags = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+---
+<Base title="Tags" description="태그별 글 모아보기">
+  <section class="hero">
+    <p class="eyebrow">$ ls ./tags</p>
+    <h1>Tags</h1>
+  </section>
+  {tags.length ? (
+    <div class="tag-cloud">
+      {tags.map(([t, n]) => <a class="tag" href={url(`/tags/${slugifyTag(t)}/`)}>#{t}<span>{n}</span></a>)}
+    </div>
+  ) : <p class="empty">아직 태그가 없습니다.</p>}
+</Base>
