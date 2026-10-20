@@ -21,8 +21,13 @@ let processor;
 async function renderMarkdown(md) {
   if (!processor) {
     const { createMarkdownProcessor } = await import('@astrojs/markdown-remark');
-    const { default: config } = await import('../astro.config.mjs');
-    processor = await createMarkdownProcessor(config.markdown);
+    let markdown = {};
+    try {
+      markdown = (await import('../astro.config.mjs')).default.markdown ?? {};
+    } catch (e) {
+      console.warn('astro.config.mjs 로드 실패, 기본 설정으로 미리보기:', e.message);
+    }
+    processor = await createMarkdownProcessor(markdown);
   }
   return (await processor.render(md)).code;
 }
@@ -123,12 +128,19 @@ async function handle(req, res) {
     return send(200, parse(readFileSync(checkFile(url.searchParams.get('file')), 'utf8')));
   }
 
-  let raw = '';
-  for await (const c of req) raw += c;
+  // 청크 경계에서 한글이 깨지지 않도록 Buffer로 모은 뒤 디코딩
+  const chunks = [];
+  for await (const c of req) chunks.push(c);
+  const raw = Buffer.concat(chunks).toString('utf8');
   const body = raw ? JSON.parse(raw) : {};
 
   if (req.method === 'POST' && url.pathname === '/api/preview') {
-    return send(200, { html: await renderMarkdown(body.body || '') });
+    try {
+      return send(200, { html: await renderMarkdown(body.body || '') });
+    } catch (e) {
+      console.error('미리보기 렌더링 실패:', e);
+      return send(500, { error: `미리보기 렌더링 실패: ${e.message}` });
+    }
   }
 
   if (req.method === 'POST' && url.pathname === '/api/post') {
@@ -232,7 +244,12 @@ d.onclick=()=>edit(p.file);$('list').appendChild(d)}}
 async function load(){const r=await api('GET','/api/posts');posts=r.posts;today=r.today;$('cats').innerHTML='';for(const c of r.categories){const o=document.createElement('option');o.value=c;$('cats').appendChild(o)}render()}
 function mode(m){view=m;document.querySelector('.editor').className='editor '+m;for(const k of['edit','split','preview'])$('tab-'+k).classList.toggle('on',k===m);preview()}
 function schedule(){clearTimeout(timer);timer=setTimeout(preview,300)}
-async function preview(){if(view==='edit')return;const {html}=await api('POST','/api/preview',{body:$('body').value});
+// 서버 렌더링(블로그와 동일)이 실패하면 브라우저에서 marked로 대신 렌더링
+async function renderPreview(md){try{return (await api('POST','/api/preview',{body:md})).html}catch(e){
+try{const {marked}=await import('https://cdn.jsdelivr.net/npm/marked@15.0.12/lib/marked.esm.js');return '<p style="color:#dc2626;font-size:13px">'+esc(e.message)+' (간이 미리보기)</p>'+marked.parse(md)}
+catch{return '<p style="color:#dc2626">'+esc(e.message)+'</p>'}}}
+const esc=t=>t.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]);
+async function preview(){if(view==='edit')return;const html=await renderPreview($('body').value);
 const dark=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';const f=$('preview'),y=f.contentWindow?f.contentWindow.scrollY:0;
 f.srcdoc='<!doctype html><html data-theme="'+dark+'"><head><meta charset="utf-8"><link rel="stylesheet" href="/preview.css"><style>body{padding:24px}</style></head><body><div class="prose">'+html+'</div></body></html>';
 f.onload=()=>f.contentWindow.scrollTo(0,y)}
