@@ -24,6 +24,14 @@ npm run new -- "포스트 제목"
 `src/content/posts/YYYY-MM-DD-포스트-제목.md` 가 `draft: true` 상태로 생성됩니다.
 작성을 마치면 `draft: false`로 바꾸고 `main`에 push 하면 자동 배포됩니다.
 
+### 로컬 편집기
+
+```bash
+npm run editor     # http://127.0.0.1:4322
+```
+
+글 생성·수정·삭제 시 해당 파일만 자동 commit + push (`main`이면 바로 배포). 로컬 git 인증을 사용하며 외부 접속은 받지 않습니다.
+
 ### Frontmatter
 
 | 필드 | 필수 | 설명 |
