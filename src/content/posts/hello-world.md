@@ -2,6 +2,7 @@
 title: "블로그를 새로 시작합니다"
 description: "정보보안과 IT를 직접 실험하며 기록하는 공간, LeJus Blog를 소개합니다."
 date: 2026-10-16
+updated: 2026-10-20
 category: Note
 tags: [blog, intro]
 ---
@@ -18,6 +19,7 @@ LeJus Blog는 **정보보안**과 **IT 기술**을 직접 실험하고, 그 과�
 ## 원칙
 
 > 모든 지식은 직접 실행해서 검증한다.
+> 해결할 때 까지 몰아친다!
 
 ```bash
 $ whoami
