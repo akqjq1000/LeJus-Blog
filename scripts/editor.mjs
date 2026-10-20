@@ -108,11 +108,15 @@ async function handle(req, res) {
   if (req.method === 'GET' && url.pathname === '/') return send(200, PAGE, 'text/html');
   if (req.method === 'GET' && url.pathname === '/api/posts') {
     const list = readdirSync(DIR).filter((f) => FILE_RE.test(f)).map((file) => {
-      const { title, date, draft, category } = parse(readFileSync(join(DIR, file), 'utf8'));
-      return { file, title, date, draft, category };
+      const { title, date, draft, category, tags } = parse(readFileSync(join(DIR, file), 'utf8'));
+      return { file, title, date, draft, category, tags };
     }).sort((a, b) => String(b.date).localeCompare(String(a.date)));
     const categories = [...new Set([...DEFAULT_CATEGORIES, ...list.map((p) => p.category)])];
-    return send(200, { posts: list, categories, today: today() });
+    const tags = [...new Set(list.flatMap((p) => p.tags))];
+    // 새 글 기본 본문: scripts/post-template.md (없으면 빈 본문)
+    const tpl = join(ROOT, 'scripts/post-template.md');
+    const template = existsSync(tpl) ? readFileSync(tpl, 'utf8') : '';
+    return send(200, { posts: list, categories, tags, template, today: today() });
   }
   if (req.method === 'GET' && url.pathname === '/preview.css') {
     return send(200, readFileSync(join(ROOT, 'src/styles/global.css'), 'utf8'), 'text/css');
@@ -181,7 +185,7 @@ createServer((req, res) => handle(req, res).catch((e) => {
 })).listen(PORT, '127.0.0.1', () => console.log(`편집기: http://127.0.0.1:${PORT}`));
 
 
-const PAGE = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+const PAGE = String.raw`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>LeJus 편집기</title>
 <style>
 :root{--bg:#f6f7f9;--surface:#fff;--border:#e5e7eb;--text:#111827;--soft:#4b5563;--muted:#9ca3af;--accent:#0891b2;--accent-soft:rgba(8,145,178,.1);--danger:#dc2626;--radius:10px;
@@ -208,6 +212,8 @@ input[readonly]{color:var(--muted);cursor:default}input[readonly]:focus{border-c
 .editor{display:grid;gap:12px}.editor.split{grid-template-columns:1fr 1fr}
 iframe{width:100%;min-height:60vh;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
 .editor.edit iframe,.editor.preview textarea{display:none}
+.sugg{flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px;margin-top:-6px;font-size:12px;color:var(--muted)}.sugg:empty{display:none}
+.sugg button{padding:2px 9px;font-size:12px;font-weight:500;border-radius:999px;background:var(--accent-soft);border-color:transparent;color:var(--accent)}
 .chk{flex-direction:row;align-items:center;gap:8px;align-self:end;padding-bottom:9px}.chk input{width:auto}
 .bar{position:sticky;bottom:0;display:flex;gap:10px;align-items:center;padding:12px 0;background:var(--bg)}
 button{padding:9px 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-weight:600;cursor:pointer}
@@ -221,29 +227,42 @@ button:disabled{opacity:.5;cursor:default}.primary{background:var(--accent);bord
 <main><div class="wrap">
 <div><h1 id="head"></h1><div class="file" id="file"></div></div>
 <div class="card">
-<label class="f w4"><span>제목</span><input id="title"></label>
-<label class="f w4"><span>설명</span><input id="description"></label>
+<label class="f w4"><span>제목</span><input id="title" oninput="schedule()"></label>
+<label class="f w4"><span>설명</span><input id="description" oninput="schedule()"></label>
 <label class="f"><span>작성일</span><input id="date" type="date"></label>
 <label class="f"><span>수정일 (저장 시 자동)</span><input id="updated" type="date" readonly tabindex="-1"></label>
 <label class="f"><span>카테고리</span><input id="category" list="cats" placeholder="선택 또는 새로 입력"><datalist id="cats"></datalist></label>
 <label class="f chk"><input id="draft" type="checkbox"><span>draft (비공개)</span></label>
-<label class="f w4"><span>태그 (쉼표로 구분)</span><input id="tags"></label>
+<label class="f w4"><span>태그 (쉼표로 구분)</span><input id="tags" oninput="suggest()"></label>
+<div class="f w4 sugg" id="sugg"></div>
 </div>
 <div class="tabs"><button id="tab-edit" class="on" onclick="mode('edit')">편집</button><button id="tab-split" onclick="mode('split')">나란히</button><button id="tab-preview" onclick="mode('preview')">미리보기</button></div>
 <div class="editor edit"><textarea id="body" placeholder="Markdown 본문" oninput="schedule()"></textarea><iframe id="preview" title="미리보기"></iframe></div>
 <div class="bar"><button class="primary" id="save" onclick="save()">저장 + 배포</button><button class="danger" id="del" onclick="del()">삭제</button><span id="msg"></span></div>
 </div></main>
 <script>
-let cur=null,posts=[],today='',timer,view='edit';const $=id=>document.getElementById(id);
+let cur=null,posts=[],today='',timer,view='edit',allTags=[],template='';const $=id=>document.getElementById(id);
 const api=async(m,u,b)=>{const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b&&JSON.stringify(b)});const j=await r.json();if(!r.ok)throw new Error(j.error);return j};
 const msg=(t,err)=>{$('msg').textContent=t;$('msg').className=err?'err':''};
 function render(){const q=$('q').value.toLowerCase();$('list').innerHTML='';for(const p of posts){if(q&&!(p.title+p.file).toLowerCase().includes(q))continue;
 const d=document.createElement('div');d.className='item'+(p.file===cur?' on':'');d.innerHTML='<div class="t"></div><div class="m"></div>';
 d.firstChild.textContent=p.title||p.file;d.lastChild.textContent=p.date;if(p.draft)d.lastChild.insertAdjacentHTML('beforeend','<span class="badge">draft</span>');
 d.onclick=()=>edit(p.file);$('list').appendChild(d)}}
-async function load(){const r=await api('GET','/api/posts');posts=r.posts;today=r.today;$('cats').innerHTML='';for(const c of r.categories){const o=document.createElement('option');o.value=c;$('cats').appendChild(o)}render()}
+async function load(){const r=await api('GET','/api/posts');posts=r.posts;today=r.today;allTags=r.tags;template=r.template;$('cats').innerHTML='';for(const c of r.categories){const o=document.createElement('option');o.value=c;$('cats').appendChild(o)}render()}
 function mode(m){view=m;document.querySelector('.editor').className='editor '+m;for(const k of['edit','split','preview'])$('tab-'+k).classList.toggle('on',k===m);preview()}
-function schedule(){clearTimeout(timer);timer=setTimeout(preview,300)}
+function schedule(){clearTimeout(timer);timer=setTimeout(()=>{preview();suggest()},300)}
+// 태그 자동 검출: 기존 태그가 제목/설명/본문에 나오면 + 코드 블록 언어
+const cur_tags=()=>$('tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+const reEsc=t=>t.replace(/[.*+?^$(){}|[\]\\]/g,'\\$&');
+function detect(){const text=[$('title').value,$('description').value,$('body').value].join('\n').toLowerCase();
+const found=allTags.filter(t=>t.length>2&&new RegExp('(^|[^\\p{L}\\p{N}])'+reEsc(t.toLowerCase())+'($|[^\\p{L}\\p{N}])','u').test(text));
+const LANGS=['c','cpp','python','javascript','typescript','java','go','rust','asm','nasm','php','sql','powershell'];
+for(const m of $('body').value.matchAll(/^\u0060{3}\s*([\w+#-]+)/gm)){const l=m[1].toLowerCase();if(LANGS.includes(l)&&!found.includes(l))found.push(l)}
+const have=cur_tags().map(t=>t.toLowerCase());return found.filter(t=>!have.includes(t.toLowerCase()))}
+function suggest(){const s=detect(),box=$('sugg');box.innerHTML='';if(!s.length)return;box.append('추천 태그');
+for(const t of s){const b=document.createElement('button');b.type='button';b.textContent='+ '+t;b.onclick=()=>addTags([t]);box.appendChild(b)}
+if(s.length>1){const b=document.createElement('button');b.type='button';b.textContent='모두 추가';b.onclick=()=>addTags(s);box.appendChild(b)}}
+function addTags(ts){$('tags').value=[...cur_tags(),...ts].join(', ');suggest()}
 // 서버 렌더링(블로그와 동일)이 실패하면 브라우저에서 marked로 대신 렌더링
 async function renderPreview(md){try{return (await api('POST','/api/preview',{body:md})).html}catch(e){
 try{const {marked}=await import('https://cdn.jsdelivr.net/npm/marked@15.0.12/lib/marked.esm.js');return '<p style="color:#dc2626;font-size:13px">'+esc(e.message)+' (간이 미리보기)</p>'+marked.parse(md)}
@@ -253,9 +272,9 @@ async function preview(){if(view==='edit')return;const html=await renderPreview(
 const dark=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';const f=$('preview'),y=f.contentWindow?f.contentWindow.scrollY:0;
 f.srcdoc='<!doctype html><html data-theme="'+dark+'"><head><meta charset="utf-8"><link rel="stylesheet" href="/preview.css"><style>body{padding:24px}</style></head><body><div class="prose">'+html+'</div></body></html>';
 f.onload=()=>f.contentWindow.scrollTo(0,y)}
-async function edit(file){cur=file||null;msg('');await load();const p=file?await api('GET','/api/post?file='+encodeURIComponent(file)):{title:'',description:'',date:today,updated:'',category:'Note',tags:[],draft:false,body:''};
+async function edit(file){cur=file||null;msg('');await load();const p=file?await api('GET','/api/post?file='+encodeURIComponent(file)):{title:'',description:'',date:today,updated:'',category:'Note',tags:[],draft:false,body:template};
 for(const k of['title','description','date','updated','category','body'])$(k).value=p[k]||'';$('tags').value=p.tags.join(', ');$('draft').checked=p.draft;
-$('head').textContent=file?'글 수정':'새 글';$('file').textContent=file||'';$('del').hidden=!file;render();preview()}
+$('head').textContent=file?'글 수정':'새 글';$('file').textContent=file||'';$('del').hidden=!file;render();preview();suggest()}
 async function run(f){$('save').disabled=$('del').disabled=true;msg('처리 중...');try{await f()}catch(e){msg('오류: '+e.message,1)}$('save').disabled=$('del').disabled=false}
 const save=()=>run(async()=>{const post={tags:$('tags').value.split(',')};for(const k of['title','description','date','updated','category','body'])post[k]=$(k).value;post.draft=$('draft').checked;
 const r=await api('POST','/api/post',{file:cur,post});await edit(r.file);msg(r.msg)});
