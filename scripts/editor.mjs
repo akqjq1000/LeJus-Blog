@@ -1,15 +1,31 @@
 // 로컬 전용 게시글 편집기: npm run editor → http://127.0.0.1:4322
 // 저장/삭제 시 해당 파일만 git commit + push (main push → GitHub Pages 자동 배포)
 import { createServer } from 'node:http';
-import { readFileSync, writeFileSync, readdirSync, existsSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, existsSync, unlinkSync, statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { join } from 'node:path';
+import { join, normalize, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const PORT = Number(process.env.PORT) || 4322;
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const DIR = join(ROOT, 'src/content/posts');
-const CATEGORIES = ['Security', 'Network', 'Reversing', 'Web', 'System', 'Dev', 'Note'];
+const PUBLIC = join(ROOT, 'public');
+const BASE = '/LeJus-Blog/';
+const DEFAULT_CATEGORIES = ['Security', 'Network', 'Reversing', 'Web', 'System', 'Dev', 'Note'];
+const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.css': 'text/css' };
+// 로컬 기준 오늘 날짜 (YYYY-MM-DD)
+const today = () => new Date().toLocaleDateString('sv-SE');
+
+// 블로그와 같은 설정(astro.config.mjs)으로 Markdown 렌더링
+let processor;
+async function renderMarkdown(md) {
+  if (!processor) {
+    const { createMarkdownProcessor } = await import('@astrojs/markdown-remark');
+    const { default: config } = await import('../astro.config.mjs');
+    processor = await createMarkdownProcessor(config.markdown);
+  }
+  return (await processor.render(md)).code;
+}
 const FILE_RE = /^[\p{L}\p{N}._-]+\.md$/u;
 
 const git = (...args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', stdio: 'pipe' }).trim();
@@ -44,7 +60,7 @@ function serialize(p) {
     `description: ${JSON.stringify(p.description)}`,
     `date: ${p.date}`,
     p.updated && `updated: ${p.updated}`,
-    `category: ${p.category}`,
+    `category: ${yamlStr(p.category)}`,
     `tags: [${p.tags.map(yamlStr).join(', ')}]`,
     p.draft && 'draft: true',
   ].filter(Boolean);
@@ -87,10 +103,21 @@ async function handle(req, res) {
   if (req.method === 'GET' && url.pathname === '/') return send(200, PAGE, 'text/html');
   if (req.method === 'GET' && url.pathname === '/api/posts') {
     const list = readdirSync(DIR).filter((f) => FILE_RE.test(f)).map((file) => {
-      const { title, date, draft } = parse(readFileSync(join(DIR, file), 'utf8'));
-      return { file, title, date, draft };
+      const { title, date, draft, category } = parse(readFileSync(join(DIR, file), 'utf8'));
+      return { file, title, date, draft, category };
     }).sort((a, b) => String(b.date).localeCompare(String(a.date)));
-    return send(200, list);
+    const categories = [...new Set([...DEFAULT_CATEGORIES, ...list.map((p) => p.category)])];
+    return send(200, { posts: list, categories, today: today() });
+  }
+  if (req.method === 'GET' && url.pathname === '/preview.css') {
+    return send(200, readFileSync(join(ROOT, 'src/styles/global.css'), 'utf8'), 'text/css');
+  }
+  // 미리보기에서 /LeJus-Blog/images/... 같은 public 파일 표시
+  if (req.method === 'GET' && url.pathname.startsWith(BASE)) {
+    const path = normalize(join(PUBLIC, decodeURIComponent(url.pathname.slice(BASE.length))));
+    if (!path.startsWith(PUBLIC) || !existsSync(path) || !statSync(path).isFile()) return send(404, { error: 'not found' });
+    res.writeHead(200, { 'Content-Type': MIME[extname(path).toLowerCase()] || 'application/octet-stream' });
+    return res.end(readFileSync(path));
   }
   if (req.method === 'GET' && url.pathname === '/api/post') {
     return send(200, parse(readFileSync(checkFile(url.searchParams.get('file')), 'utf8')));
@@ -100,17 +127,30 @@ async function handle(req, res) {
   for await (const c of req) raw += c;
   const body = raw ? JSON.parse(raw) : {};
 
+  if (req.method === 'POST' && url.pathname === '/api/preview') {
+    return send(200, { html: await renderMarkdown(body.body || '') });
+  }
+
   if (req.method === 'POST' && url.pathname === '/api/post') {
     const p = body.post;
     if (!p.title?.trim() || !p.description?.trim()) throw new Error('제목과 설명은 필수');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(p.date)) throw new Error('날짜 형식은 YYYY-MM-DD');
-    if (p.updated && !/^\d{4}-\d{2}-\d{2}$/.test(p.updated)) throw new Error('수정일 형식은 YYYY-MM-DD');
-    if (!CATEGORIES.includes(p.category)) throw new Error('잘못된 카테고리');
+    p.category = p.category?.trim();
+    if (!p.category || /[\r\n]/.test(p.category)) throw new Error('카테고리를 입력하세요');
     const isNew = !body.file;
     const file = body.file || slugify(p.date, p.title);
     const path = checkFile(file);
     if (isNew && existsSync(path)) throw new Error(`이미 존재: ${file}`);
-    writeFileSync(path, serialize({ ...p, tags: p.tags.map((t) => t.trim()).filter(Boolean) }));
+    const post = { ...p, tags: p.tags.map((t) => t.trim()).filter(Boolean) };
+    if (isNew) post.updated = '';
+    else {
+      // 내용이 바뀐 경우에만 수정일을 오늘로 갱신
+      const prev = readFileSync(path, 'utf8');
+      post.updated = parse(prev).updated;
+      if (serialize(post) === serialize(parse(prev))) return send(200, { file, msg: '변경 없음' });
+      post.updated = today();
+    }
+    writeFileSync(path, serialize(post));
     const msg = publish(file, `${isNew ? 'post' : 'update'}: ${p.title}`);
     return send(200, { file, msg });
   }
@@ -150,13 +190,18 @@ h1{margin:0;font-size:20px}.file{color:var(--muted);font:12px var(--mono)}
 .f>span{font-size:12px;font-weight:600;color:var(--soft)}
 input,select,textarea{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;outline:none}
 input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-textarea{min-height:55vh;resize:vertical;font:13px/1.6 var(--mono)}
+textarea{min-height:60vh;resize:vertical;font:13px/1.6 var(--mono)}
+input[readonly]{color:var(--muted);cursor:default}input[readonly]:focus{border-color:var(--border);box-shadow:none}
+.tabs{display:flex;gap:4px;margin-bottom:-8px}.tabs button{padding:6px 12px;font-size:13px;border-color:transparent;background:none;color:var(--soft)}.tabs button.on{background:var(--surface);border-color:var(--border);color:var(--text)}
+.editor{display:grid;gap:12px}.editor.split{grid-template-columns:1fr 1fr}
+iframe{width:100%;min-height:60vh;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
+.editor.edit iframe,.editor.preview textarea{display:none}
 .chk{flex-direction:row;align-items:center;gap:8px;align-self:end;padding-bottom:9px}.chk input{width:auto}
 .bar{position:sticky;bottom:0;display:flex;gap:10px;align-items:center;padding:12px 0;background:var(--bg)}
 button{padding:9px 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-weight:600;cursor:pointer}
 button:disabled{opacity:.5;cursor:default}.primary{background:var(--accent);border-color:var(--accent);color:#fff}.danger{color:var(--danger)}
 #msg{font-size:13px;color:var(--soft)}#msg.err{color:var(--danger)}
-@media (max-width:760px){body{flex-direction:column;height:auto}aside{width:auto;max-height:40vh}main{padding:16px}.card{grid-template-columns:1fr 1fr}.f.w2,.f.w4{grid-column:span 2}}
+@media (max-width:760px){.editor.split{grid-template-columns:1fr}body{flex-direction:column;height:auto}aside{width:auto;max-height:40vh}main{padding:16px}.card{grid-template-columns:1fr 1fr}.f.w2,.f.w4{grid-column:span 2}}
 </style></head><body>
 <aside><div class="brand">LeJus <span>Editor</span></div>
 <div class="side-top"><button class="primary" onclick="edit()">+ 새 글</button><input id="q" placeholder="검색" oninput="render()"></div>
@@ -167,26 +212,33 @@ button:disabled{opacity:.5;cursor:default}.primary{background:var(--accent);bord
 <label class="f w4"><span>제목</span><input id="title"></label>
 <label class="f w4"><span>설명</span><input id="description"></label>
 <label class="f"><span>작성일</span><input id="date" type="date"></label>
-<label class="f"><span>수정일</span><input id="updated" type="date"></label>
-<label class="f"><span>카테고리</span><select id="category">${CATEGORIES.map((c) => `<option>${c}</option>`).join('')}</select></label>
+<label class="f"><span>수정일 (저장 시 자동)</span><input id="updated" type="date" readonly tabindex="-1"></label>
+<label class="f"><span>카테고리</span><input id="category" list="cats" placeholder="선택 또는 새로 입력"><datalist id="cats"></datalist></label>
 <label class="f chk"><input id="draft" type="checkbox"><span>draft (비공개)</span></label>
 <label class="f w4"><span>태그 (쉼표로 구분)</span><input id="tags"></label>
 </div>
-<textarea id="body" placeholder="Markdown 본문"></textarea>
+<div class="tabs"><button id="tab-edit" class="on" onclick="mode('edit')">편집</button><button id="tab-split" onclick="mode('split')">나란히</button><button id="tab-preview" onclick="mode('preview')">미리보기</button></div>
+<div class="editor edit"><textarea id="body" placeholder="Markdown 본문" oninput="schedule()"></textarea><iframe id="preview" title="미리보기"></iframe></div>
 <div class="bar"><button class="primary" id="save" onclick="save()">저장 + 배포</button><button class="danger" id="del" onclick="del()">삭제</button><span id="msg"></span></div>
 </div></main>
 <script>
-let cur=null,posts=[];const $=id=>document.getElementById(id);
+let cur=null,posts=[],today='',timer,view='edit';const $=id=>document.getElementById(id);
 const api=async(m,u,b)=>{const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b&&JSON.stringify(b)});const j=await r.json();if(!r.ok)throw new Error(j.error);return j};
 const msg=(t,err)=>{$('msg').textContent=t;$('msg').className=err?'err':''};
 function render(){const q=$('q').value.toLowerCase();$('list').innerHTML='';for(const p of posts){if(q&&!(p.title+p.file).toLowerCase().includes(q))continue;
 const d=document.createElement('div');d.className='item'+(p.file===cur?' on':'');d.innerHTML='<div class="t"></div><div class="m"></div>';
 d.firstChild.textContent=p.title||p.file;d.lastChild.textContent=p.date;if(p.draft)d.lastChild.insertAdjacentHTML('beforeend','<span class="badge">draft</span>');
 d.onclick=()=>edit(p.file);$('list').appendChild(d)}}
-async function load(){posts=await api('GET','/api/posts');render()}
-async function edit(file){cur=file||null;msg('');const p=file?await api('GET','/api/post?file='+encodeURIComponent(file)):{title:'',description:'',date:new Date().toISOString().slice(0,10),updated:'',category:'Note',tags:[],draft:false,body:''};
+async function load(){const r=await api('GET','/api/posts');posts=r.posts;today=r.today;$('cats').innerHTML='';for(const c of r.categories){const o=document.createElement('option');o.value=c;$('cats').appendChild(o)}render()}
+function mode(m){view=m;document.querySelector('.editor').className='editor '+m;for(const k of['edit','split','preview'])$('tab-'+k).classList.toggle('on',k===m);preview()}
+function schedule(){clearTimeout(timer);timer=setTimeout(preview,300)}
+async function preview(){if(view==='edit')return;const {html}=await api('POST','/api/preview',{body:$('body').value});
+const dark=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';const f=$('preview'),y=f.contentWindow?f.contentWindow.scrollY:0;
+f.srcdoc='<!doctype html><html data-theme="'+dark+'"><head><meta charset="utf-8"><link rel="stylesheet" href="/preview.css"><style>body{padding:24px}</style></head><body><div class="prose">'+html+'</div></body></html>';
+f.onload=()=>f.contentWindow.scrollTo(0,y)}
+async function edit(file){cur=file||null;msg('');await load();const p=file?await api('GET','/api/post?file='+encodeURIComponent(file)):{title:'',description:'',date:today,updated:'',category:'Note',tags:[],draft:false,body:''};
 for(const k of['title','description','date','updated','category','body'])$(k).value=p[k]||'';$('tags').value=p.tags.join(', ');$('draft').checked=p.draft;
-$('head').textContent=file?'글 수정':'새 글';$('file').textContent=file||'';$('del').hidden=!file;load()}
+$('head').textContent=file?'글 수정':'새 글';$('file').textContent=file||'';$('del').hidden=!file;render();preview()}
 async function run(f){$('save').disabled=$('del').disabled=true;msg('처리 중...');try{await f()}catch(e){msg('오류: '+e.message,1)}$('save').disabled=$('del').disabled=false}
 const save=()=>run(async()=>{const post={tags:$('tags').value.split(',')};for(const k of['title','description','date','updated','category','body'])post[k]=$(k).value;post.draft=$('draft').checked;
 const r=await api('POST','/api/post',{file:cur,post});await edit(r.file);msg(r.msg)});

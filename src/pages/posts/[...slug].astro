@@ -21,7 +21,7 @@ const minutes = readingTime(post.body);
   <article>
     <header class="post-header">
       <div class="meta">
-        <span class="badge">{post.data.category}</span>
+        <a class="badge" href={url(`/categories/${slugifyTag(post.data.category)}/`)}>{post.data.category}</a>
         <time datetime={post.data.date.toISOString()}>{formatDate(post.data.date)}</time>
         <span>· {minutes} min read</span>
         {post.data.updated && <span>· 수정 {formatDate(post.data.updated)}</span>}
