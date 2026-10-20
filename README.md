@@ -32,6 +32,7 @@ npm run editor     # http://127.0.0.1:4322
 ```
 
 글 생성·수정·삭제 시 해당 파일만 자동 commit + push (`main`이면 바로 배포). 로컬 git 인증을 사용하며 외부 접속은 받지 않습니다.
+새 글 본문은 `scripts/post-template.md`로 시작하며(수정 가능), 제목·본문에 나온 기존 태그와 코드 블록 언어를 태그로 추천합니다.
 
 ### Frontmatter
 
