@@ -3,6 +3,7 @@ import { url } from '../lib/site';
 const path = Astro.url.pathname.replace(/\/$/, '');
 const links = [
   { href: url('/'), label: 'Posts' },
+  { href: url('/categories'), label: 'Categories' },
   { href: url('/tags'), label: 'Tags' },
   { href: url('/about'), label: 'About' },
 ];

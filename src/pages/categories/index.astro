@@ -1,0 +1,20 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getPosts, slugifyTag } from '../../lib/posts';
+import { url } from '../../lib/site';
+const posts = await getPosts();
+const counts = new Map<string, number>();
+posts.forEach((p) => counts.set(p.data.category, (counts.get(p.data.category) ?? 0) + 1));
+const categories = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+---
+<Base title="Categories" description="카테고리별 글 모아보기">
+  <section class="hero">
+    <p class="eyebrow">$ ls ./categories</p>
+    <h1>Categories</h1>
+  </section>
+  {categories.length ? (
+    <div class="tag-cloud">
+      {categories.map(([c, n]) => <a class="tag" href={url(`/categories/${slugifyTag(c)}/`)}>{c}<span>{n}</span></a>)}
+    </div>
+  ) : <p class="empty">아직 카테고리가 없습니다.</p>}
+</Base>

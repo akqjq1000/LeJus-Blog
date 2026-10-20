@@ -40,7 +40,7 @@ npm run editor     # http://127.0.0.1:4322
 | `description` | ✓ | 목록·SEO용 요약 |
 | `date` | ✓ | 작성일 (`YYYY-MM-DD`) |
 | `updated` | | 수정일 |
-| `category` | | `Security` `Network` `Reversing` `Web` `System` `Dev` `Note` 중 하나 |
+| `category` | | 카테고리 이름 (기본 `Note`). 새 이름을 쓰면 카테고리가 생깁니다 |
 | `tags` | | 문자열 배열 |
 | `draft` | | `true`면 배포되지 않음 (dev 서버에서는 보임) |
 
