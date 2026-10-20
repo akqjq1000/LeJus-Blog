@@ -27,6 +27,7 @@ npm run new -- "포스트 제목"
 ### 로컬 편집기
 
 ```bash
+npm install        # 최초 1회 (미리보기에 필요)
 npm run editor     # http://127.0.0.1:4322
 ```
 
