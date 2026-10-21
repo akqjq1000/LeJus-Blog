@@ -117,10 +117,11 @@ select id from member where id='guest' and no=0⏎or⏎no=2
 ```console
 GET /challenge/web-32/index.php?no=0%0aor%0ano=2
 → hi admin!
-<통과 — 공개 글에서는 플래그/인증 결과를 가림>
 ```
 
-> 값은 가린다 — webhacking.kr에 직접 입력하면 점수가 올라간다.
+> 이 문제는 **따로 제출할 플래그 문자열이 없다.** `admin` 행이 조회되는 순간
+> 서버가 `solve(18)`을 호출해 **그 입력 자체로 바로 통과** 처리된다.
+> 즉 "비밀 값을 알아내는" 문제가 아니라 **의도된 입력(통과 조건)을 만들어 넣는** 문제다.
 
 ## 5. 왜 취약한가 — 그리고 올바른 방어
 
