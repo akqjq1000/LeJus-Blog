@@ -1,0 +1,104 @@
+---
+import { getPosts } from '../lib/posts';
+import { url } from '../lib/site';
+
+/** 글을 KST 날짜(YYYY-MM-DD)별로 묶어 클라이언트 달력에 넘긴다 */
+const posts = await getPosts();
+const byDate: Record<string, { title: string; href: string }[]> = {};
+for (const p of posts) {
+  const key = p.data.date.toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+  (byDate[key] ??= []).push({ title: p.data.title, href: url(`/posts/${p.id}/`) });
+}
+---
+<section class="calendar" data-calendar>
+  <div class="cal-head">
+    <h3 class="cal-title" aria-live="polite">Calendar</h3>
+    <div class="cal-nav">
+      <button type="button" data-cal-prev aria-label="이전 달">‹</button>
+      <button type="button" data-cal-today aria-label="이번 달">•</button>
+      <button type="button" data-cal-next aria-label="다음 달">›</button>
+    </div>
+  </div>
+  <div class="cal-grid" role="grid" data-cal-grid></div>
+  <ul class="cal-posts" data-cal-posts hidden></ul>
+  <script type="application/json" data-cal-data set:html={JSON.stringify(byDate)} />
+</section>
+
+<script>
+  type Entry = { title: string; href: string };
+  const WEEK = ['일', '월', '화', '수', '목', '금', '토'];
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const kstToday = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+
+  document.querySelectorAll<HTMLElement>('[data-calendar]').forEach((root) => {
+    const data: Record<string, Entry[]> = JSON.parse(root.querySelector('[data-cal-data]')?.textContent || '{}');
+    const grid = root.querySelector<HTMLElement>('[data-cal-grid]')!;
+    const title = root.querySelector<HTMLElement>('.cal-title')!;
+    const list = root.querySelector<HTMLUListElement>('[data-cal-posts]')!;
+    const today = kstToday();
+    let [y, m] = today.split('-').map(Number);
+    let selected = '';
+
+    const showPosts = (key: string) => {
+      selected = selected === key ? '' : key;
+      list.replaceChildren();
+      list.hidden = !selected;
+      for (const e of selected ? data[selected] : []) {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = e.href;
+        a.textContent = e.title;
+        li.append(a);
+        list.append(li);
+      }
+      grid.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.date === selected)));
+    };
+
+    const render = () => {
+      title.textContent = `${y}. ${pad(m)}`;
+      grid.replaceChildren();
+      for (const w of WEEK) {
+        const s = document.createElement('span');
+        s.className = 'cal-dow';
+        s.textContent = w;
+        grid.append(s);
+      }
+      const first = new Date(y, m - 1, 1).getDay();
+      const days = new Date(y, m, 0).getDate();
+      for (let i = 0; i < first; i++) grid.append(document.createElement('span'));
+      for (let d = 1; d <= days; d++) {
+        const key = `${y}-${pad(m)}-${pad(d)}`;
+        const posts = data[key];
+        const cell = document.createElement(posts ? 'button' : 'span');
+        cell.className = 'cal-day';
+        cell.textContent = String(d);
+        if (key === today) cell.classList.add('is-today');
+        if (posts && cell instanceof HTMLButtonElement) {
+          cell.type = 'button';
+          cell.dataset.date = key;
+          cell.classList.add('has-post');
+          cell.setAttribute('aria-label', `${m}월 ${d}일 글 ${posts.length}개`);
+          cell.setAttribute('aria-pressed', String(key === selected));
+          cell.addEventListener('click', () => showPosts(key));
+        }
+        grid.append(cell);
+      }
+    };
+
+    const move = (delta: number) => {
+      m += delta;
+      if (m < 1) { m = 12; y--; }
+      if (m > 12) { m = 1; y++; }
+      selected = '';
+      list.hidden = true;
+      render();
+    };
+    root.querySelector('[data-cal-prev]')?.addEventListener('click', () => move(-1));
+    root.querySelector('[data-cal-next]')?.addEventListener('click', () => move(1));
+    root.querySelector('[data-cal-today]')?.addEventListener('click', () => {
+      [y, m] = kstToday().split('-').map(Number);
+      move(0);
+    });
+    render();
+  });
+</script>
