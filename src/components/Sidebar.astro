@@ -1,6 +1,7 @@
 ---
 import { getPosts, slugifyTag } from '../lib/posts';
 import { url } from '../lib/site';
+import Calendar from './Calendar.astro';
 const posts = await getPosts();
 const counts = new Map<string, number>();
 posts.forEach((p) => counts.set(p.data.category, (counts.get(p.data.category) ?? 0) + 1));
@@ -8,6 +9,7 @@ const categories = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(
 const recent = posts.slice(0, 5);
 ---
 <aside class="sidebar">
+  <Calendar />
   <section>
     <h3>Categories</h3>
     <ul>
