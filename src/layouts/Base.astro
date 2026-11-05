@@ -44,7 +44,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <main>
       <div class="container layout">
         <div class="content"><slot /></div>
-        <Sidebar />
+        {Astro.slots.has('aside') ? <slot name="aside" /> : <Sidebar />}
       </div>
     </main>
     <Footer />
