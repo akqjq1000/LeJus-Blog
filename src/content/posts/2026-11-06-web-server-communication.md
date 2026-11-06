@@ -16,38 +16,39 @@ TCP로 연결을 뚫고, TLS로 암호화를 협상하고, HTTP 요청을 보내
 
 <figure style="margin:28px 0">
 <svg viewBox="0 0 720 150" style="width:100%;height:auto" role="img" aria-label="웹 요청 전체 흐름: DNS, TCP 3-way handshake, TLS, HTTP 요청/응답, HTML 렌더링">
+  <style>@keyframes wscf{from{opacity:0}to{opacity:1}} .wa{animation:wscf .55s ease both}</style>
   <defs>
     <marker id="fa" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
       <path d="M0,0 L6,3 L0,6 Z" fill="var(--muted)"/>
     </marker>
   </defs>
   <g font-family="var(--font-mono)" font-size="12" text-anchor="middle">
-    <g>
-      <rect x="8"   y="40" width="96" height="46" rx="8" fill="var(--bg-soft)" stroke="var(--border)"/>
-      <text x="56"  y="60" fill="var(--text)">DNS 조회</text>
-      <text x="56"  y="76" fill="var(--muted)" font-size="10.5">이름 → IP</text>
+    <g class="wa" style="animation-delay:0s">
+      <rect x="8" y="40" width="96" height="46" rx="8" fill="var(--bg-soft)" stroke="var(--border)"/>
+      <text x="56" y="60" fill="var(--text)">DNS 조회</text>
+      <text x="56" y="76" fill="var(--muted)" font-size="10.5">이름 → IP</text>
     </g>
-    <g>
+    <g class="wa" style="animation-delay:.12s">
       <rect x="128" y="40" width="112" height="46" rx="8" fill="var(--bg-soft)" stroke="var(--border)"/>
       <text x="184" y="60" fill="var(--text)">TCP 3-way</text>
       <text x="184" y="76" fill="var(--muted)" font-size="10.5">연결 수립</text>
     </g>
-    <g>
+    <g class="wa" style="animation-delay:.24s">
       <rect x="264" y="40" width="112" height="46" rx="8" fill="var(--bg-soft)" stroke="var(--border)"/>
       <text x="320" y="60" fill="var(--accent)">TLS</text>
       <text x="320" y="76" fill="var(--muted)" font-size="10.5">암호화 협상</text>
     </g>
-    <g>
+    <g class="wa" style="animation-delay:.36s">
       <rect x="400" y="40" width="132" height="46" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
       <text x="466" y="60" fill="var(--text)">HTTP 요청/응답</text>
       <text x="466" y="76" fill="var(--muted)" font-size="10.5">request / response</text>
     </g>
-    <g>
+    <g class="wa" style="animation-delay:.48s">
       <rect x="556" y="40" width="112" height="46" rx="8" fill="var(--bg-soft)" stroke="var(--border)"/>
       <text x="612" y="60" fill="var(--text)">HTML 렌더</text>
       <text x="612" y="76" fill="var(--muted)" font-size="10.5">화면 표시</text>
     </g>
-    <g stroke="var(--muted)" stroke-width="1.4">
+    <g class="wa" style="animation-delay:.3s" stroke="var(--muted)" stroke-width="1.4">
       <line x1="106" y1="63" x2="124" y2="63" marker-end="url(#fa)"/>
       <line x1="242" y1="63" x2="260" y2="63" marker-end="url(#fa)"/>
       <line x1="378" y1="63" x2="396" y2="63" marker-end="url(#fa)"/>
@@ -67,6 +68,7 @@ TCP는 "보낸 데이터가 순서대로, 빠짐없이 도착하는" 신뢰성 �
 
 <figure style="margin:28px 0">
 <svg viewBox="0 0 680 280" style="width:100%;height:auto" role="img" aria-label="TCP 3-way handshake: SYN, SYN+ACK, ACK">
+  <style>@keyframes wscf{from{opacity:0}to{opacity:1}} .wa{animation:wscf .55s ease both}</style>
   <defs>
     <marker id="ha" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
       <path d="M0,0 L7,3.2 L0,6.4 Z" fill="var(--accent)"/>
@@ -77,18 +79,21 @@ TCP는 "보낸 데이터가 순서대로, 빠짐없이 도착하는" 신뢰성 �
     <text x="550" y="28" text-anchor="middle" font-size="13" fill="var(--text)">Server</text>
     <line x1="130" y1="40" x2="130" y2="250" stroke="var(--border)" stroke-width="1.5"/>
     <line x1="550" y1="40" x2="550" y2="250" stroke="var(--border)" stroke-width="1.5"/>
-
-    <line x1="130" y1="80"  x2="548" y2="110" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#ha)"/>
-    <text x="135" y="74" font-size="12.5" fill="var(--text)">① SYN</text>
-    <text x="135" y="92" font-size="10.5" fill="var(--muted)">"연결 열자" (seq=x)</text>
-
-    <line x1="550" y1="140" x2="132" y2="170" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#ha)"/>
-    <text x="545" y="134" text-anchor="end" font-size="12.5" fill="var(--text)">② SYN + ACK</text>
-    <text x="545" y="152" text-anchor="end" font-size="10.5" fill="var(--muted)">"좋아, 나도 열자" (seq=y, ack=x+1)</text>
-
-    <line x1="130" y1="200" x2="548" y2="230" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#ha)"/>
-    <text x="135" y="194" font-size="12.5" fill="var(--text)">③ ACK</text>
-    <text x="135" y="212" font-size="10.5" fill="var(--muted)">"확인" (ack=y+1) → 연결 수립</text>
+    <g class="wa" style="animation-delay:.15s">
+      <line x1="130" y1="80" x2="548" y2="110" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#ha)"/>
+      <text x="135" y="74" font-size="12.5" fill="var(--text)">① SYN</text>
+      <text x="135" y="92" font-size="10.5" fill="var(--muted)">"연결 열자" (seq=x)</text>
+    </g>
+    <g class="wa" style="animation-delay:.55s">
+      <line x1="550" y1="140" x2="132" y2="170" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#ha)"/>
+      <text x="545" y="134" text-anchor="end" font-size="12.5" fill="var(--text)">② SYN + ACK</text>
+      <text x="545" y="152" text-anchor="end" font-size="10.5" fill="var(--muted)">"좋아, 나도 열자" (seq=y, ack=x+1)</text>
+    </g>
+    <g class="wa" style="animation-delay:.95s">
+      <line x1="130" y1="200" x2="548" y2="230" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#ha)"/>
+      <text x="135" y="194" font-size="12.5" fill="var(--text)">③ ACK</text>
+      <text x="135" y="212" font-size="10.5" fill="var(--muted)">"확인" (ack=y+1) → 연결 수립</text>
+    </g>
   </g>
 </svg>
 <figcaption style="text-align:center;color:var(--muted);font-size:13px;margin-top:6px">TCP 3-way handshake (직접 작성한 다이어그램)</figcaption>
@@ -168,38 +173,40 @@ Server: github.com
 
 <figure style="margin:28px 0">
 <svg viewBox="0 0 700 290" style="width:100%;height:auto" role="img" aria-label="HTTP 요청과 응답 메시지 구조 비교">
+  <style>@keyframes wscf{from{opacity:0}to{opacity:1}} .wa{animation:wscf .55s ease both}</style>
   <g font-family="var(--font-mono)" font-size="12">
-    <!-- Request -->
-    <rect x="8" y="30" width="320" height="238" rx="10" fill="var(--bg-soft)" stroke="var(--border)"/>
-    <text x="24" y="20" font-size="12.5" fill="var(--accent)">Request</text>
-    <rect x="24" y="46" width="288" height="34" rx="6" fill="var(--surface)" stroke="var(--accent)"/>
-    <text x="36" y="62" fill="var(--text)">GET /LeJus-Blog/ HTTP/1.1</text>
-    <text x="36" y="75" font-size="9.5" fill="var(--muted)">start line: Method · 경로 · 버전</text>
-    <rect x="24" y="88" width="288" height="86" rx="6" fill="var(--surface)" stroke="var(--border)"/>
-    <text x="36" y="106" fill="var(--text)">Host: akqjq1000.github.io</text>
-    <text x="36" y="124" fill="var(--text)">User-Agent: curl/8.21.0</text>
-    <text x="36" y="142" fill="var(--text)">Accept: */*</text>
-    <text x="36" y="166" font-size="9.5" fill="var(--muted)">request headers</text>
-    <line x1="24" y1="190" x2="312" y2="190" stroke="var(--muted)" stroke-dasharray="3 3"/>
-    <text x="168" y="186" text-anchor="middle" font-size="9.5" fill="var(--muted)">빈 줄 (헤더 끝)</text>
-    <rect x="24" y="200" width="288" height="52" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-dasharray="4 3"/>
-    <text x="168" y="230" text-anchor="middle" fill="var(--muted)">body (GET은 보통 없음)</text>
-
-    <!-- Response -->
-    <rect x="372" y="30" width="320" height="238" rx="10" fill="var(--bg-soft)" stroke="var(--border)"/>
-    <text x="388" y="20" font-size="12.5" fill="var(--accent)">Response</text>
-    <rect x="388" y="46" width="288" height="34" rx="6" fill="var(--surface)" stroke="var(--accent)"/>
-    <text x="400" y="62" fill="var(--text)">HTTP/1.1 200 OK</text>
-    <text x="400" y="75" font-size="9.5" fill="var(--muted)">status line: 버전 · 상태 코드</text>
-    <rect x="388" y="88" width="288" height="86" rx="6" fill="var(--surface)" stroke="var(--border)"/>
-    <text x="400" y="106" fill="var(--text)">Content-Type: text/html</text>
-    <text x="400" y="124" fill="var(--text)">Content-Length: 19227</text>
-    <text x="400" y="142" fill="var(--text)">Connection: keep-alive</text>
-    <text x="400" y="166" font-size="9.5" fill="var(--muted)">response headers</text>
-    <line x1="388" y1="190" x2="676" y2="190" stroke="var(--muted)" stroke-dasharray="3 3"/>
-    <text x="532" y="186" text-anchor="middle" font-size="9.5" fill="var(--muted)">빈 줄 (헤더 끝)</text>
-    <rect x="388" y="200" width="288" height="52" rx="6" fill="var(--surface)" stroke="var(--border)"/>
-    <text x="532" y="230" text-anchor="middle" fill="var(--text)">body: &lt;!doctype html&gt; …</text>
+    <g class="wa" style="animation-delay:0s">
+      <rect x="8" y="30" width="320" height="238" rx="10" fill="var(--bg-soft)" stroke="var(--border)"/>
+      <text x="24" y="20" font-size="12.5" fill="var(--accent)">Request</text>
+      <rect x="24" y="46" width="288" height="34" rx="6" fill="var(--surface)" stroke="var(--accent)"/>
+      <text x="36" y="62" fill="var(--text)">GET /LeJus-Blog/ HTTP/1.1</text>
+      <text x="36" y="75" font-size="9.5" fill="var(--muted)">start line: Method · 경로 · 버전</text>
+      <rect x="24" y="88" width="288" height="86" rx="6" fill="var(--surface)" stroke="var(--border)"/>
+      <text x="36" y="106" fill="var(--text)">Host: akqjq1000.github.io</text>
+      <text x="36" y="124" fill="var(--text)">User-Agent: curl/8.21.0</text>
+      <text x="36" y="142" fill="var(--text)">Accept: */*</text>
+      <text x="36" y="166" font-size="9.5" fill="var(--muted)">request headers</text>
+      <line x1="24" y1="190" x2="312" y2="190" stroke="var(--muted)" stroke-dasharray="3 3"/>
+      <text x="168" y="186" text-anchor="middle" font-size="9.5" fill="var(--muted)">빈 줄 (헤더 끝)</text>
+      <rect x="24" y="200" width="288" height="52" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-dasharray="4 3"/>
+      <text x="168" y="230" text-anchor="middle" fill="var(--muted)">body (GET은 보통 없음)</text>
+    </g>
+    <g class="wa" style="animation-delay:.2s">
+      <rect x="372" y="30" width="320" height="238" rx="10" fill="var(--bg-soft)" stroke="var(--border)"/>
+      <text x="388" y="20" font-size="12.5" fill="var(--accent)">Response</text>
+      <rect x="388" y="46" width="288" height="34" rx="6" fill="var(--surface)" stroke="var(--accent)"/>
+      <text x="400" y="62" fill="var(--text)">HTTP/1.1 200 OK</text>
+      <text x="400" y="75" font-size="9.5" fill="var(--muted)">status line: 버전 · 상태 코드</text>
+      <rect x="388" y="88" width="288" height="86" rx="6" fill="var(--surface)" stroke="var(--border)"/>
+      <text x="400" y="106" fill="var(--text)">Content-Type: text/html</text>
+      <text x="400" y="124" fill="var(--text)">Content-Length: 19227</text>
+      <text x="400" y="142" fill="var(--text)">Connection: keep-alive</text>
+      <text x="400" y="166" font-size="9.5" fill="var(--muted)">response headers</text>
+      <line x1="388" y1="190" x2="676" y2="190" stroke="var(--muted)" stroke-dasharray="3 3"/>
+      <text x="532" y="186" text-anchor="middle" font-size="9.5" fill="var(--muted)">빈 줄 (헤더 끝)</text>
+      <rect x="388" y="200" width="288" height="52" rx="6" fill="var(--surface)" stroke="var(--border)"/>
+      <text x="532" y="230" text-anchor="middle" fill="var(--text)">body: &lt;!doctype html&gt; …</text>
+    </g>
   </g>
 </svg>
 <figcaption style="text-align:center;color:var(--muted);font-size:13px;margin-top:6px">HTTP 요청·응답 메시지 구조 (직접 작성한 다이어그램)</figcaption>
